@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ChevronUpIcon, XIcon } from "lucide-react";
 import { EventSummary } from "@/lib/types";
 import { EventDetailContent } from "@/components/event-detail-content";
@@ -19,7 +19,14 @@ interface PinEventSheetProps {
     onClose: () => void;
 }
 
-export function PinEventSheet({ venueId, venueName, events, initialEventId, distanceFor, onClose }: PinEventSheetProps) {
+export interface PinEventSheetHandle {
+    requestClose: () => void;
+}
+
+export const PinEventSheet = forwardRef<PinEventSheetHandle, PinEventSheetProps>(function PinEventSheet(
+    { venueId, venueName, events, initialEventId, distanceFor, onClose },
+    ref
+) {
     const [expanded, setExpanded] = useState(false);
     const [dragTop, setDragTop] = useState<number | null>(null);
     const [entered, setEntered] = useState(false);
@@ -50,6 +57,8 @@ export function PinEventSheet({ venueId, venueName, events, initialEventId, dist
         setClosing(true);
         window.setTimeout(onClose, 300);
     }
+
+    useImperativeHandle(ref, () => ({ requestClose }));
 
     function onPointerDown(e: React.PointerEvent) {
         (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -152,4 +161,4 @@ export function PinEventSheet({ venueId, venueName, events, initialEventId, dist
             </div>
         </div>
     );
-}
+});

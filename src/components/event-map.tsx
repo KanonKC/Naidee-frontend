@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { LocateIcon } from "lucide-react";
 import { EventSummary } from "@/lib/types";
 import { createPinIcon, createClusterIcon, createUserLocationIcon } from "@/components/naidee/map-pin-icon";
@@ -116,6 +116,13 @@ function LocateControl({
     );
 }
 
+function MapClickHandler({ onMapClick }: { onMapClick?: () => void }) {
+    useMapEvents({
+        click: () => onMapClick?.()
+    });
+    return null;
+}
+
 function FitBounds({ groups }: { groups: VenueGroup[] }) {
     const map = useMap();
     const key = groups
@@ -161,13 +168,14 @@ interface EventMapProps {
     events: EventSummary[];
     selectedVenueId?: string | null;
     onSelectVenue?: (venueId: string) => void;
+    onMapClick?: () => void;
     userLocation: LatLng | null;
     onLocated: (loc: LatLng) => void;
     locateClassName?: string;
     autoLocate?: boolean;
 }
 
-export default function EventMap({ events, selectedVenueId, onSelectVenue, userLocation, onLocated, locateClassName, autoLocate }: EventMapProps) {
+export default function EventMap({ events, selectedVenueId, onSelectVenue, onMapClick, userLocation, onLocated, locateClassName, autoLocate }: EventMapProps) {
     const venueGroups = groupByVenue(events);
 
     return (
@@ -194,6 +202,7 @@ export default function EventMap({ events, selectedVenueId, onSelectVenue, userL
             <LocateControl userLocation={userLocation} onLocated={onLocated} className={locateClassName} autoLocate={autoLocate} />
             <FitBounds groups={venueGroups} />
             <PanToSelection groups={venueGroups} selectedVenueId={selectedVenueId} />
+            <MapClickHandler onMapClick={onMapClick} />
         </MapContainer>
     );
 }

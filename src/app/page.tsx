@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/naidee/empty-state";
 import { EventDetailOverlay } from "@/components/event-detail-overlay";
 import { DateRangeSheet } from "@/components/date-range-sheet";
 import { CategoryFilterSheet } from "@/components/naidee/category-filter-sheet";
-import { PinEventSheet } from "@/components/naidee/pin-event-sheet";
+import { PinEventSheet, type PinEventSheetHandle } from "@/components/naidee/pin-event-sheet";
 import { SearchOverlay } from "@/components/naidee/search-overlay";
 import {
     computeDateRange,
@@ -61,6 +61,7 @@ export default function Home() {
     const [userLocation, setUserLocation] = useState<LatLng | null>(null);
 
     const gridRef = useRef<HTMLDivElement>(null);
+    const pinSheetRef = useRef<PinEventSheetHandle>(null);
 
     const horizon = useMemo(() => fetchHorizon(), []);
 
@@ -92,11 +93,13 @@ export default function Home() {
 
     function filterEvents(range: DateRange, cats: Set<string>, query: string) {
         const q = query.trim().toLowerCase();
+        const now = new Date();
         return events
             .filter((e) => {
                 if (!e.start_at) return false;
                 const start = new Date(e.start_at);
                 const end = e.end_at ? new Date(e.end_at) : start;
+                if (end < now) return false;
                 if (!rangesOverlap(range.from, range.to, start, end)) return false;
                 if (cats.size > 0 && !e.categories.some((c) => cats.has(c))) return false;
                 if (q && !`${e.title ?? ""} ${e.venue?.name ?? ""}`.toLowerCase().includes(q)) return false;
@@ -298,6 +301,7 @@ export default function Home() {
                     events={filteredEvents}
                     selectedVenueId={selectedVenueId}
                     onSelectVenue={handleSelectVenue}
+                    onMapClick={() => pinSheetRef.current?.requestClose()}
                     userLocation={userLocation}
                     onLocated={setUserLocation}
                     autoLocate
@@ -323,6 +327,7 @@ export default function Home() {
 
             {!searchOpen && selectedVenueId && selectedVenueEvents.length > 0 && (
                 <PinEventSheet
+                    ref={pinSheetRef}
                     venueId={selectedVenueId}
                     venueName={selectedVenueName}
                     events={selectedVenueEvents}
