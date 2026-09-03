@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 import { LocateIcon } from "lucide-react";
 import { EventSummary } from "@/lib/types";
 import { createPinIcon, createClusterIcon, createUserLocationIcon } from "@/components/naidee/map-pin-icon";
+import { primaryCategory } from "@/lib/categories";
 import type { LatLng } from "@/lib/geo";
 
 const BANGKOK_CENTER: [number, number] = [13.7563, 100.5018];
@@ -34,7 +35,7 @@ function groupByVenue(events: EventSummary[]): VenueGroup[] {
                 name: venue.name,
                 lat: venue.lat,
                 lng: venue.lng,
-                category: event.category,
+                category: primaryCategory(event.categories),
                 events: [event]
             });
         }
@@ -45,14 +46,17 @@ function groupByVenue(events: EventSummary[]): VenueGroup[] {
 function LocateControl({
     userLocation,
     onLocated,
-    className
+    className,
+    autoLocate
 }: {
     userLocation: LatLng | null;
     onLocated: (loc: LatLng) => void;
     className?: string;
+    autoLocate?: boolean;
 }) {
     const map = useMap();
     const [locating, setLocating] = useState(false);
+    const autoTriggered = useRef(false);
 
     function handleClick() {
         if (!navigator.geolocation) return;
@@ -68,6 +72,13 @@ function LocateControl({
             { enableHighAccuracy: true, timeout: 8000 }
         );
     }
+
+    useEffect(() => {
+        if (!autoLocate || autoTriggered.current) return;
+        autoTriggered.current = true;
+        handleClick();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoLocate]);
 
     return (
         <>
@@ -122,6 +133,30 @@ function FitBounds({ groups }: { groups: VenueGroup[] }) {
     return null;
 }
 
+const CHIPS_BOTTOM_PX = 180;
+const SHEET_TOP_FRACTION = 0.53;
+
+function PanToSelection({ groups, selectedVenueId }: { groups: VenueGroup[]; selectedVenueId?: string | null }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!selectedVenueId) return;
+        if (window.innerWidth >= 1024) return;
+        const group = groups.find((g) => g.venueId === selectedVenueId);
+        if (!group) return;
+
+        const size = map.getSize();
+        const targetY = (CHIPS_BOTTOM_PX + size.y * SHEET_TOP_FRACTION) / 2;
+        const currentPoint = map.latLngToContainerPoint([group.lat, group.lng]);
+        const desiredPoint = L.point(size.x / 2, targetY);
+        const offset = currentPoint.subtract(desiredPoint);
+        map.panBy(offset, { animate: true, duration: 0.4 });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedVenueId]);
+
+    return null;
+}
+
 interface EventMapProps {
     events: EventSummary[];
     selectedVenueId?: string | null;
@@ -129,9 +164,10 @@ interface EventMapProps {
     userLocation: LatLng | null;
     onLocated: (loc: LatLng) => void;
     locateClassName?: string;
+    autoLocate?: boolean;
 }
 
-export default function EventMap({ events, selectedVenueId, onSelectVenue, userLocation, onLocated, locateClassName }: EventMapProps) {
+export default function EventMap({ events, selectedVenueId, onSelectVenue, userLocation, onLocated, locateClassName, autoLocate }: EventMapProps) {
     const venueGroups = groupByVenue(events);
 
     return (
@@ -155,8 +191,9 @@ export default function EventMap({ events, selectedVenueId, onSelectVenue, userL
                     />
                 );
             })}
-            <LocateControl userLocation={userLocation} onLocated={onLocated} className={locateClassName} />
+            <LocateControl userLocation={userLocation} onLocated={onLocated} className={locateClassName} autoLocate={autoLocate} />
             <FitBounds groups={venueGroups} />
+            <PanToSelection groups={venueGroups} selectedVenueId={selectedVenueId} />
         </MapContainer>
     );
 }

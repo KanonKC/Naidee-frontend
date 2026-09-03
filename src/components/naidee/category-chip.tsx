@@ -15,9 +15,9 @@ export function CategoryChip({ category, selected, onClick }: CategoryChipProps)
             type="button"
             onClick={onClick}
             aria-pressed={selected}
-            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-4.5 font-sans text-sm font-semibold transition-colors duration-150 ease-out"
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 font-sans text-[13px] font-semibold transition-colors duration-150 ease-out"
             style={{
-                minHeight: 44,
+                minHeight: 34,
                 border: selected ? "1.5px solid transparent" : "1.5px solid var(--border)",
                 background: selected ? color : "var(--card)",
                 color: selected ? "#fff" : "var(--naidee-stone-700)"

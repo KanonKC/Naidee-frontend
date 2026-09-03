@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { DateRange as DayPickerRange } from "react-day-picker";
+import { ChevronLeftIcon } from "lucide-react";
 import { listEvents } from "@/lib/api";
 import { EventSummary } from "@/lib/types";
 import { FilterBar } from "@/components/naidee/filter-bar";
@@ -10,6 +11,9 @@ import { EventCard, EventCardSkeleton } from "@/components/naidee/event-card";
 import { EmptyState } from "@/components/naidee/empty-state";
 import { EventDetailOverlay } from "@/components/event-detail-overlay";
 import { DateRangeSheet } from "@/components/date-range-sheet";
+import { CategoryFilterSheet } from "@/components/naidee/category-filter-sheet";
+import { PinEventSheet } from "@/components/naidee/pin-event-sheet";
+import { SearchOverlay } from "@/components/naidee/search-overlay";
 import {
     computeDateRange,
     dateRangeLabel,
@@ -45,15 +49,17 @@ export default function Home() {
     const [customRange, setCustomRange] = useState<DateRange | null>(null);
     const [draftRange, setDraftRange] = useState<DayPickerRange | undefined>(undefined);
     const [dateSheetOpen, setDateSheetOpen] = useState(false);
+    const [categorySheetOpen, setCategorySheetOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
 
     const [categories, setCategories] = useState<Set<string>>(new Set());
     const [search, setSearch] = useState("");
 
     const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+    const [pinFocusEventId, setPinFocusEventId] = useState<string | null>(null);
     const [detailEventId, setDetailEventId] = useState<string | null>(null);
     const [userLocation, setUserLocation] = useState<LatLng | null>(null);
 
-    const carouselRef = useRef<HTMLDivElement>(null);
     const gridRef = useRef<HTMLDivElement>(null);
 
     const horizon = useMemo(() => fetchHorizon(), []);
@@ -92,7 +98,7 @@ export default function Home() {
                 const start = new Date(e.start_at);
                 const end = e.end_at ? new Date(e.end_at) : start;
                 if (!rangesOverlap(range.from, range.to, start, end)) return false;
-                if (cats.size > 0 && (!e.category || !cats.has(e.category))) return false;
+                if (cats.size > 0 && !e.categories.some((c) => cats.has(c))) return false;
                 if (q && !`${e.title ?? ""} ${e.venue?.name ?? ""}`.toLowerCase().includes(q)) return false;
                 return true;
             })
@@ -121,15 +127,24 @@ export default function Home() {
     function scrollToVenue(venueId: string) {
         const target = filteredEvents.find((e) => e.venue?.id === venueId);
         if (!target) return;
-        for (const ref of [carouselRef, gridRef]) {
-            const el = ref.current?.querySelector<HTMLElement>(`[data-event-id="${target.id}"]`);
-            el?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
-        }
+        const el = gridRef.current?.querySelector<HTMLElement>(`[data-event-id="${target.id}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
     }
 
     function handleSelectVenue(venueId: string) {
         setSelectedVenueId(venueId);
+        setPinFocusEventId(null);
         requestAnimationFrame(() => scrollToVenue(venueId));
+    }
+
+    function handleSearchCardSelect(event: EventSummary) {
+        if (!event.venue?.id) {
+            setDetailEventId(event.id);
+            return;
+        }
+        setSearchOpen(false);
+        setSelectedVenueId(event.venue.id);
+        setPinFocusEventId(event.id);
     }
 
     function handleToggleCategory(id: string) {
@@ -146,6 +161,7 @@ export default function Home() {
         setDatePreset(preset);
         setCustomRange(null);
         setSelectedVenueId(null);
+        if (preset !== "custom") setDateSheetOpen(false);
     }
 
     function openDatePicker() {
@@ -199,13 +215,53 @@ export default function Home() {
 
     const detailEvent = detailEventId ? (events.find((e) => e.id === detailEventId) ?? null) : null;
 
-    const countLine = (
-        <div className="px-4 pt-3.5 pb-2.5 text-[13px] text-muted-foreground">
-            เจอ <b className="font-bold text-foreground tabular-nums">{filteredEvents.length}</b> งาน{countSuffix}
-        </div>
-    );
+    const selectedVenueEvents = selectedVenueId
+        ? filteredEvents.filter((e) => e.venue?.id === selectedVenueId)
+        : [];
+    const selectedVenueName = selectedVenueEvents[0]?.venue?.name ?? "";
 
-    const cardsBody = (variant: "carousel" | "grid") => {
+    const hasActiveFilters = datePreset !== "all" || categories.size > 0 || search.trim() !== "";
+
+    function renderCountLine(showClear: boolean) {
+        return (
+            <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5">
+                <div className="text-[13px] text-muted-foreground">
+                    เจอ <b className="font-bold text-foreground tabular-nums">{filteredEvents.length}</b> งาน{countSuffix}
+                </div>
+                {showClear && hasActiveFilters && (
+                    <button
+                        type="button"
+                        onClick={clearAllFilters}
+                        className="text-[13px] font-semibold"
+                        style={{ color: "var(--primary)" }}
+                    >
+                        ล้างตัวกรอง
+                    </button>
+                )}
+            </div>
+        );
+    }
+
+    const countLine = renderCountLine(false);
+
+    function renderCardsGrid(onCardClick: (event: EventSummary) => void) {
+        return (
+            <div ref={gridRef} className="grid flex-1 auto-rows-min grid-cols-2 gap-4 overflow-y-auto px-4 pb-5">
+                {filteredEvents.map((event) => (
+                    <div key={event.id} data-event-id={event.id}>
+                        <EventCard
+                            event={event}
+                            distance={eventDistance(event)}
+                            selected={!!selectedVenueId && event.venue?.id === selectedVenueId}
+                            onClick={() => onCardClick(event)}
+                        />
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    function gridBody(onCardClick: (event: EventSummary) => void) {
         if (error) {
             return (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
@@ -218,15 +274,9 @@ export default function Home() {
         }
         if (loading) {
             return (
-                <div
-                    className={
-                        variant === "carousel"
-                            ? "flex gap-3 overflow-hidden px-3 pb-4"
-                            : "grid grid-cols-2 gap-4 px-4 pb-5"
-                    }
-                >
-                    {(variant === "carousel" ? [0, 1, 2] : [0, 1, 2, 3]).map((i) => (
-                        <EventCardSkeleton key={i} style={variant === "carousel" ? { width: 154 } : undefined} />
+                <div className="grid grid-cols-2 gap-4 px-4 pb-5">
+                    {[0, 1, 2, 3].map((i) => (
+                        <EventCardSkeleton key={i} />
                     ))}
                 </div>
             );
@@ -238,45 +288,8 @@ export default function Home() {
                 </div>
             );
         }
-        if (variant === "carousel") {
-            return (
-                <div
-                    ref={carouselRef}
-                    className="no-scrollbar flex flex-1 items-start gap-3 overflow-x-auto px-3 pb-4"
-                    style={{ scrollSnapType: "x mandatory", scrollPaddingLeft: 12 }}
-                >
-                    {filteredEvents.map((event) => (
-                        <div
-                            key={event.id}
-                            data-event-id={event.id}
-                            style={{ scrollSnapAlign: "start", width: 154, flexShrink: 0 }}
-                        >
-                            <EventCard
-                                event={event}
-                                distance={eventDistance(event)}
-                                selected={!!selectedVenueId && event.venue?.id === selectedVenueId}
-                                onClick={() => setDetailEventId(event.id)}
-                            />
-                        </div>
-                    ))}
-                </div>
-            );
-        }
-        return (
-            <div ref={gridRef} className="grid flex-1 auto-rows-min grid-cols-2 gap-4 overflow-y-auto px-4 pb-5">
-                {filteredEvents.map((event) => (
-                    <div key={event.id} data-event-id={event.id}>
-                        <EventCard
-                            event={event}
-                            distance={eventDistance(event)}
-                            selected={!!selectedVenueId && event.venue?.id === selectedVenueId}
-                            onClick={() => setDetailEventId(event.id)}
-                        />
-                    </div>
-                ))}
-            </div>
-        );
-    };
+        return renderCardsGrid(onCardClick);
+    }
 
     return (
         <main className="relative h-dvh w-full overflow-hidden bg-background">
@@ -287,6 +300,7 @@ export default function Home() {
                     onSelectVenue={handleSelectVenue}
                     userLocation={userLocation}
                     onLocated={setUserLocation}
+                    autoLocate
                     locateClassName="absolute right-3 z-20 bottom-[calc(47%+14px)] lg:bottom-4"
                 />
             </div>
@@ -299,16 +313,24 @@ export default function Home() {
             </div>
 
             <div className="absolute top-3 right-3 left-3 z-30 lg:hidden">
-                <FilterBar {...filterBarProps} variant="floating" />
+                <FilterBar
+                    {...filterBarProps}
+                    variant="compact"
+                    onSearchOpen={() => setSearchOpen(true)}
+                    onCategoryOpen={() => setCategorySheetOpen(true)}
+                />
             </div>
 
-            <div
-                className="absolute right-0 bottom-0 left-0 z-10 flex flex-col overflow-hidden rounded-t-[24px] bg-background shadow-[var(--shadow-sheet)] lg:hidden"
-                style={{ top: "53%" }}
-            >
-                {countLine}
-                {cardsBody("carousel")}
-            </div>
+            {!searchOpen && selectedVenueId && selectedVenueEvents.length > 0 && (
+                <PinEventSheet
+                    venueId={selectedVenueId}
+                    venueName={selectedVenueName}
+                    events={selectedVenueEvents}
+                    initialEventId={pinFocusEventId}
+                    distanceFor={eventDistance}
+                    onClose={() => setSelectedVenueId(null)}
+                />
+            )}
 
             <div
                 className="absolute inset-y-0 right-0 z-30 hidden w-[400px] flex-col bg-background lg:flex"
@@ -318,18 +340,51 @@ export default function Home() {
                     <FilterBar {...filterBarProps} variant="sidebar" />
                 </div>
                 {countLine}
-                {cardsBody("grid")}
+                {gridBody((event) => setDetailEventId(event.id))}
             </div>
+
+            <SearchOverlay open={searchOpen}>
+                <div className="px-4 pt-3 pb-1.5">
+                    <FilterBar
+                        {...filterBarProps}
+                        variant="full"
+                        trailingAction={
+                            <button
+                                type="button"
+                                onClick={() => setSearchOpen(false)}
+                                aria-label="ย้อนกลับ"
+                                className="flex size-11 shrink-0 items-center justify-center rounded-full"
+                                style={{ background: "var(--muted)" }}
+                            >
+                                <ChevronLeftIcon className="size-5" />
+                            </button>
+                        }
+                    />
+                </div>
+                {renderCountLine(true)}
+                {gridBody(handleSearchCardSelect)}
+            </SearchOverlay>
 
             <DateRangeSheet
                 open={dateSheetOpen}
                 onOpenChange={setDateSheetOpen}
+                datePreset={datePreset}
+                onSelectPreset={handleDateSelect}
                 range={draftRange}
                 onRangeChange={setDraftRange}
                 pendingCount={pendingCount}
                 onApply={applyDateRange}
                 onClear={() => setDraftRange(undefined)}
+                onClearFilter={() => handleDateSelect("all")}
                 maxDate={horizon.to}
+            />
+
+            <CategoryFilterSheet
+                open={categorySheetOpen}
+                onOpenChange={setCategorySheetOpen}
+                categories={categories}
+                onToggleCategory={handleToggleCategory}
+                onSelectAll={filterBarProps.onSelectAll}
             />
 
             {detailEventId && (

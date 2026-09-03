@@ -28,9 +28,9 @@ export function DateChips({ value, customLabel, onSelect, onPick }: DateChipsPro
                         type="button"
                         onClick={() => onSelect(o.id)}
                         aria-pressed={selected}
-                        className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-4.5 font-sans text-sm font-semibold tabular-nums transition-colors duration-150 ease-out"
+                        className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 font-sans text-[13px] font-semibold tabular-nums transition-colors duration-150 ease-out"
                         style={{
-                            minHeight: 44,
+                            minHeight: 34,
                             border: selected ? "1.5px solid transparent" : "1.5px solid var(--border)",
                             background: selected ? "var(--primary)" : "var(--card)",
                             color: selected ? "var(--primary-foreground)" : "var(--naidee-stone-700)"
@@ -44,15 +44,15 @@ export function DateChips({ value, customLabel, onSelect, onPick }: DateChipsPro
                 type="button"
                 onClick={onPick}
                 aria-pressed={value === "custom"}
-                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-4.5 font-sans text-sm font-semibold tabular-nums transition-colors duration-150 ease-out"
+                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 font-sans text-[13px] font-semibold tabular-nums transition-colors duration-150 ease-out"
                 style={{
-                    minHeight: 44,
+                    minHeight: 34,
                     border: value === "custom" ? "1.5px solid transparent" : "1.5px solid var(--border)",
                     background: value === "custom" ? "var(--primary)" : "var(--card)",
                     color: value === "custom" ? "var(--primary-foreground)" : "var(--naidee-stone-700)"
                 }}
             >
-                <CalendarIcon className="size-4" />
+                <CalendarIcon className="size-3.5" />
                 {value === "custom" && customLabel ? customLabel : "เลือกวัน"}
             </button>
         </div>

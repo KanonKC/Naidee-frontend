@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { EventSummary } from "@/lib/types";
-import { categoryColorVar, categorySoftVar, categoryLabel } from "@/lib/categories";
-import { formatThaiWeekdayDate, formatEventTime } from "@/lib/date-filter";
+import { categoryColorVar, categorySoftVar, categoryLabel, primaryCategory } from "@/lib/categories";
+import { formatEventDateDisplay } from "@/lib/date-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +17,18 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, distance, selected, onClick, className, style }: EventCardProps) {
-    const color = categoryColorVar(event.category);
-    const soft = categorySoftVar(event.category);
+    const [imageBroken, setImageBroken] = useState(false);
+    const category = primaryCategory(event.categories);
+    const color = categoryColorVar(category);
+    const soft = categorySoftVar(category);
     const title = event.title ?? "ไม่มีชื่อกิจกรรม";
+    const image = !imageBroken ? event.thumbnail_url : null;
+    const dateDisplay = formatEventDateDisplay(
+        event.start_at,
+        event.end_at,
+        event.start_time_known,
+        event.end_time_known
+    );
 
     return (
         <button
@@ -38,22 +48,38 @@ export function EventCard({ event, distance, selected, onClick, className, style
                     background: soft
                 }}
             >
-                <div
-                    className="absolute inset-0 flex items-end p-3"
-                    style={{
-                        color,
-                        backgroundImage: "radial-gradient(currentColor 1.5px,transparent 1.5px)",
-                        backgroundSize: "14px 14px"
-                    }}
-                >
-                    <b className="relative text-sm leading-snug opacity-90 line-clamp-3">{title}</b>
-                </div>
+                {image ? (
+                    <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={image}
+                            alt=""
+                            onError={() => setImageBroken(true)}
+                            className="absolute inset-0 h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0" style={{ background: "var(--overlay-protect-hero)" }} />
+                        <div className="absolute right-3 bottom-3 left-3 text-white">
+                            <b className="relative text-sm leading-snug line-clamp-3">{title}</b>
+                        </div>
+                    </>
+                ) : (
+                    <div
+                        className="absolute inset-0 flex items-end p-3"
+                        style={{
+                            color,
+                            backgroundImage: "radial-gradient(currentColor 1.5px,transparent 1.5px)",
+                            backgroundSize: "14px 14px"
+                        }}
+                    >
+                        <b className="relative text-sm leading-snug opacity-90 line-clamp-3">{title}</b>
+                    </div>
+                )}
                 <div className="absolute top-2.5 left-2.5">
                     <span
                         className="inline-flex items-center rounded-full px-3 py-0.5 text-xs font-bold leading-relaxed"
                         style={{ background: color, color: "#fff" }}
                     >
-                        {categoryLabel(event.category)}
+                        {categoryLabel(category)}
                     </span>
                 </div>
             </div>
@@ -61,14 +87,13 @@ export function EventCard({ event, distance, selected, onClick, className, style
                 <div className="line-clamp-2 text-[15px] leading-snug font-semibold text-foreground">
                     {title}
                 </div>
-                <div className="mt-0.5 text-[13px] leading-snug tabular-nums">
-                    <b className="font-bold" style={{ color: "var(--primary)" }}>
-                        {event.start_at ? formatThaiWeekdayDate(event.start_at) : "ไม่ระบุวันที่"}
-                    </b>
-                    {event.start_at && (
-                        <b className="font-bold text-foreground"> • {formatEventTime(event.start_at, event.end_at)}</b>
-                    )}
-                </div>
+                {dateDisplay && (
+                    <div className="mt-0.5 text-[13px] leading-snug tabular-nums">
+                        <b className="font-bold" style={{ color: "var(--primary)" }}>
+                            {dateDisplay}
+                        </b>
+                    </div>
+                )}
                 <div className="truncate text-[13px] leading-snug text-muted-foreground">
                     {event.venue?.name ?? "ไม่ระบุสถานที่"}
                     {distance && (
