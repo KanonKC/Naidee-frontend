@@ -5,7 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
 export interface EventFilters {
     from?: string;
     to?: string;
-    category?: string;
+    categories?: string[];
 }
 
 async function apiFetch<T>(path: string): Promise<T> {
@@ -22,7 +22,7 @@ export function listEvents(filters: EventFilters): Promise<EventSummary[]> {
     const params = new URLSearchParams();
     if (filters.from) params.set("from", filters.from);
     if (filters.to) params.set("to", filters.to);
-    if (filters.category) params.set("category", filters.category);
+    if (filters.categories && filters.categories.length > 0) params.set("categories", filters.categories.join(","));
     const query = params.toString();
     return apiFetch<EventSummary[]>(`/api/events${query ? `?${query}` : ""}`);
 }

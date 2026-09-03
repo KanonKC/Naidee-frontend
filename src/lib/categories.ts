@@ -24,6 +24,10 @@ export function categorySoftVar(category: string | null): string {
     return "var(--muted)";
 }
 
+export function primaryCategory(categories: string[]): string | null {
+    return categories[0] ?? null;
+}
+
 export function categoryLabel(category: string | null): string {
     const known = CATEGORIES.find((c) => c.id === category);
     if (known) return known.label;

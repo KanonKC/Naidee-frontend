@@ -76,6 +76,35 @@ export function formatEventTime(start: string | null, end: string | null): strin
     return `${time(s)}–${time(e)}`;
 }
 
+export function formatEventDateDisplay(
+    start: string | null,
+    end: string | null,
+    startTimeKnown = false,
+    endTimeKnown = false
+): string | null {
+    if (!start && !end) return null;
+
+    if (start && end) {
+        const sameDay = new Date(start).toDateString() === new Date(end).toDateString();
+        if (sameDay) {
+            const time = startTimeKnown ? ` ${formatEventTime(start, endTimeKnown ? end : null)}` : "";
+            return `${formatThaiWeekdayDate(start)}${time}`;
+        }
+        const startLabel = `${formatThaiWeekdayDate(start)}${startTimeKnown ? ` ${formatEventTime(start, null)}` : ""}`;
+        const endLabel = `${formatThaiWeekdayDate(end)}${endTimeKnown ? ` ${formatEventTime(end, null)}` : ""}`;
+        return `${startLabel} - ${endLabel}`;
+    }
+
+    if (start) {
+        const time = startTimeKnown ? ` ${formatEventTime(start, null)}` : "";
+        return `${formatThaiWeekdayDate(start)}${time}`;
+    }
+
+    const endValue = end as string;
+    const time = endTimeKnown ? ` ${formatEventTime(endValue, null)}` : "";
+    return `วันนี้ - ${formatThaiWeekdayDate(endValue)}${time}`;
+}
+
 export function dateRangeLabel(range: DateRange): string {
     const sameDay = range.from.toDateString() === range.to.toDateString();
     if (sameDay) return formatThaiDayMonth(range.from);

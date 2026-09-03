@@ -11,10 +11,14 @@ export interface EventSummary {
     title: string | null;
     start_at: string | null;
     end_at: string | null;
+    start_time_known: boolean;
+    end_time_known: boolean;
     price_text: string | null;
-    category: string | null;
+    categories: string[];
+    tags: string[];
     registration_url: string | null;
     venue: Venue | null;
+    thumbnail_url: string | null;
 }
 
 export interface EventDetail extends EventSummary {
