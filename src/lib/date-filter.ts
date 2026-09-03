@@ -105,6 +105,19 @@ export function formatEventDateDisplay(
     return `วันนี้ - ${formatThaiWeekdayDate(endValue)}${time}`;
 }
 
+/** "เริ่มในอีก N นาที/ชั่วโมง" for events starting soon; null once it's started or more than 48h out. */
+export function formatStartCountdown(start: string | null, startTimeKnown: boolean, now: Date = new Date()): string | null {
+    if (!start || !startTimeKnown) return null;
+    const diffMs = new Date(start).getTime() - now.getTime();
+    if (diffMs <= 0) return null;
+    const diffMinutes = Math.round(diffMs / 60000);
+    if (diffMinutes < 60) return `เริ่มในอีก ${Math.max(diffMinutes, 1)} นาที`;
+    const diffHours = Math.round(diffMinutes / 60);
+    if (diffHours < 24) return `เริ่มในอีก ${diffHours} ชั่วโมง`;
+    if (diffHours < 48) return "เริ่มพรุ่งนี้";
+    return null;
+}
+
 export function dateRangeLabel(range: DateRange): string {
     const sameDay = range.from.toDateString() === range.to.toDateString();
     if (sameDay) return formatThaiDayMonth(range.from);

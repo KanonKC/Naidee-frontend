@@ -141,7 +141,7 @@ function FitBounds({ groups }: { groups: VenueGroup[] }) {
 }
 
 const CHIPS_BOTTOM_PX = 180;
-const SHEET_TOP_FRACTION = 0.53;
+const SHEET_TOP_FRACTION = 0.5;
 
 function PanToSelection({ groups, selectedVenueId }: { groups: VenueGroup[]; selectedVenueId?: string | null }) {
     const map = useMap();

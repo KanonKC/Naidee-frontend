@@ -1,11 +1,11 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { ChevronUpIcon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { EventSummary } from "@/lib/types";
 import { EventDetailContent } from "@/components/event-detail-content";
 
-const HALF_TOP = 53;
+const HALF_TOP = 40;
 const FULL_TOP = 0;
 const HIDDEN_TOP = 100;
 const CLOSE_THRESHOLD = HALF_TOP + 14;
@@ -92,6 +92,8 @@ export const PinEventSheet = forwardRef<PinEventSheetHandle, PinEventSheetProps>
 
     return (
         <div
+            role="dialog"
+            aria-label={venueName}
             className="absolute right-0 bottom-0 left-0 z-40 flex flex-col overflow-hidden rounded-t-[24px] bg-background shadow-[var(--shadow-sheet)] lg:hidden"
             style={{
                 top: `${top}%`,
@@ -101,38 +103,6 @@ export const PinEventSheet = forwardRef<PinEventSheetHandle, PinEventSheetProps>
                 if (e.propertyName === "top" && closing) onClose();
             }}
         >
-            <div
-                className="flex shrink-0 cursor-grab touch-none flex-col items-center gap-2 pt-2.5 pb-1 active:cursor-grabbing"
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerCancel={onPointerUp}
-            >
-                <div className="h-1.5 w-10 rounded-full" style={{ background: "var(--naidee-stone-300)" }} />
-                <div className="flex w-full items-center justify-between px-4 pt-0.5">
-                    <div className="truncate pr-2 text-[15px] font-semibold text-foreground">{venueName}</div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                        <button
-                            type="button"
-                            onClick={() => setExpanded((v) => !v)}
-                            aria-label={expanded ? "ย่อ" : "ขยายเต็มจอ"}
-                            className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-transform duration-200"
-                            style={{ background: "var(--muted)", transform: expanded ? "rotate(180deg)" : "none" }}
-                        >
-                            <ChevronUpIcon className="size-4.5" />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={requestClose}
-                            aria-label="ปิด"
-                            className="flex size-8 items-center justify-center rounded-full text-muted-foreground"
-                            style={{ background: "var(--muted)" }}
-                        >
-                            <XIcon className="size-4.5" />
-                        </button>
-                    </div>
-                </div>
-            </div>
             {events.length > 1 && (
                 <div className="no-scrollbar flex shrink-0 gap-1.5 overflow-x-auto px-4 pt-2 pb-1">
                     {events.map((event, i) => {
@@ -157,7 +127,32 @@ export const PinEventSheet = forwardRef<PinEventSheetHandle, PinEventSheetProps>
                 </div>
             )}
             <div className="flex-1 overflow-y-auto">
-                <EventDetailContent eventId={activeEvent.id} distance={distanceFor(activeEvent)} heroRounded />
+                <EventDetailContent
+                    eventId={activeEvent.id}
+                    distance={distanceFor(activeEvent)}
+                    heroAspectRatio="4/3"
+                    dragHandle={
+                        <div
+                            className="absolute inset-x-0 top-0 flex h-10 cursor-grab touch-none justify-center pt-2.5 active:cursor-grabbing"
+                            onPointerDown={onPointerDown}
+                            onPointerMove={onPointerMove}
+                            onPointerUp={onPointerUp}
+                            onPointerCancel={onPointerUp}
+                        >
+                            <div className="h-1.5 w-10 rounded-full bg-white/75" />
+                        </div>
+                    }
+                    topRightAction={
+                        <button
+                            type="button"
+                            onClick={requestClose}
+                            aria-label="ปิด"
+                            className="flex size-11 items-center justify-center rounded-full bg-white/92 shadow-[var(--shadow-float)]"
+                        >
+                            <XIcon className="size-5" />
+                        </button>
+                    }
+                />
             </div>
         </div>
     );
