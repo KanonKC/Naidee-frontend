@@ -142,6 +142,8 @@ function FitBounds({ groups }: { groups: VenueGroup[] }) {
 
 const CHIPS_BOTTOM_PX = 180;
 const SHEET_TOP_FRACTION = 0.5;
+// Where the pin lands in the gap between the filter bar and the sheet: 0 = right at the filter bar, 1 = right at the sheet edge.
+const PIN_VERTICAL_BIAS = 0.15;
 
 function PanToSelection({ groups, selectedVenueId }: { groups: VenueGroup[]; selectedVenueId?: string | null }) {
     const map = useMap();
@@ -153,7 +155,8 @@ function PanToSelection({ groups, selectedVenueId }: { groups: VenueGroup[]; sel
         if (!group) return;
 
         const size = map.getSize();
-        const targetY = (CHIPS_BOTTOM_PX + size.y * SHEET_TOP_FRACTION) / 2;
+        const sheetTop = size.y * SHEET_TOP_FRACTION;
+        const targetY = CHIPS_BOTTOM_PX + (sheetTop - CHIPS_BOTTOM_PX) * PIN_VERTICAL_BIAS;
         const currentPoint = map.latLngToContainerPoint([group.lat, group.lng]);
         const desiredPoint = L.point(size.x / 2, targetY);
         const offset = currentPoint.subtract(desiredPoint);
