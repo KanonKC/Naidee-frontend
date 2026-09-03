@@ -7,9 +7,10 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { XIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react";
 import { EventSummary } from "@/lib/types";
 import { EventDetailContent } from "@/components/event-detail-content";
+import { formatEventDateDisplay } from "@/lib/date-filter";
 
 const HALF_TOP = 30;
 const FULL_TOP = 0;
@@ -44,6 +45,7 @@ export const PinEventSheet = forwardRef<
 		initialEventId ?? events[0]?.id ?? null,
 	);
 	const [renderedVenueId, setRenderedVenueId] = useState(venueId);
+	const [pickerOpen, setPickerOpen] = useState(false);
 	const dragState = useRef<{ startY: number; startTop: number } | null>(null);
 
 	if (venueId !== renderedVenueId) {
@@ -51,6 +53,7 @@ export const PinEventSheet = forwardRef<
 		setActiveEventId(initialEventId ?? events[0]?.id ?? null);
 		setExpanded(false);
 		setClosing(false);
+		setPickerOpen(false);
 	}
 
 	useEffect(() => {
@@ -130,32 +133,57 @@ export const PinEventSheet = forwardRef<
 			}}
 		>
 			{events.length > 1 && (
-				<div className="no-scrollbar flex shrink-0 gap-1.5 overflow-x-auto px-4 pt-2 pb-1">
-					{events.map((event, i) => {
-						const selected = event.id === activeEvent.id;
-						return (
-							<button
-								key={event.id}
-								type="button"
-								onClick={() => setActiveEventId(event.id)}
-								className="inline-flex flex-shrink-0 items-center rounded-full px-3 font-sans text-[12px] font-semibold transition-colors duration-150 ease-out"
-								style={{
-									minHeight: 28,
-									border: selected
-										? "1.5px solid transparent"
-										: "1.5px solid var(--border)",
-									background: selected
-										? "var(--primary)"
-										: "var(--card)",
-									color: selected
-										? "var(--primary-foreground)"
-										: "var(--naidee-stone-700)",
-								}}
-							>
-								{`งานที่ ${i + 1}`}
-							</button>
-						);
-					})}
+				<div className="relative z-10 shrink-0 px-2 pt-2 pb-1">
+					<button
+						type="button"
+						onClick={() => setPickerOpen((v) => !v)}
+						className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors duration-150 ease-out"
+					>
+						<EventPickerThumb event={activeEvent} />
+						<span className="min-w-0 flex-1">
+							<span className="block truncate text-[12px] font-medium ">
+								{activeEvent.venue?.name ?? venueName}
+							</span>
+							<span className="block truncate text-[13px] font-bold">
+								{activeEvent.title ?? "ไม่มีชื่อกิจกรรม"}
+							</span>
+						</span>
+						<ChevronDownIcon
+							className="size-4 shrink-0 transition-transform duration-200 ease-out"
+							style={{
+								transform: pickerOpen
+									? "rotate(180deg)"
+									: "rotate(0deg)",
+							}}
+						/>
+					</button>
+					<div
+						className="no-scrollbar absolute inset-x-2 top-full flex max-h-[192px] flex-col gap-1 overflow-y-auto rounded-sm bg-card p-1.5 shadow-[var(--shadow-float)] origin-top"
+						style={{
+							opacity: pickerOpen ? 1 : 0,
+							transform: pickerOpen
+								? "scale(1) translateY(4px)"
+								: "scale(0.96) translateY(-4px)",
+							pointerEvents: pickerOpen ? "auto" : "none",
+							transition:
+								"opacity 180ms ease-out, transform 180ms ease-out",
+						}}
+					>
+						{events.map((event) => {
+							const selected = event.id === activeEvent.id;
+							return (
+								<EventPickerRow
+									key={event.id}
+									event={event}
+									selected={selected}
+									onClick={() => {
+										setActiveEventId(event.id);
+										setPickerOpen(false);
+									}}
+								/>
+							);
+						})}
+					</div>
 				</div>
 			)}
 			<div className="flex-1 overflow-y-auto">
@@ -189,3 +217,66 @@ export const PinEventSheet = forwardRef<
 		</div>
 	);
 });
+
+function EventPickerThumb({ event }: { event: EventSummary }) {
+	return (
+		<span className="relative size-9 shrink-0 overflow-hidden rounded-full bg-[var(--muted)]">
+			{event.thumbnail_url && (
+				// eslint-disable-next-line @next/next/no-img-element
+				<img
+					src={event.thumbnail_url}
+					alt=""
+					className="absolute inset-0 h-full w-full object-cover"
+				/>
+			)}
+		</span>
+	);
+}
+
+function EventPickerRow({
+	event,
+	selected,
+	onClick,
+}: {
+	event: EventSummary;
+	selected: boolean;
+	onClick: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="flex items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors duration-150 ease-out"
+			style={{
+				background: selected
+					? "var(--naidee-orange-100)"
+					: "transparent",
+				color: "var(--foreground)",
+			}}
+		>
+			<EventPickerThumb event={event} />
+			<span className="min-w-0 flex-1">
+				<span className="block truncate text-[13px] font-bold">
+					{event.title ?? "ไม่มีชื่อกิจกรรม"}
+				</span>
+				<span
+					className="block truncate text-[13px] font-medium"
+					style={{ color: "var(--naidee-stone-500)" }}
+				>
+					{formatEventDateDisplay(
+						event.start_at,
+						event.end_at,
+						event.start_time_known,
+						event.end_time_known,
+					)}
+				</span>
+			</span>
+			{selected && (
+				<CheckIcon
+					className="size-4 shrink-0"
+					style={{ color: "var(--primary)" }}
+				/>
+			)}
+		</button>
+	);
+}
