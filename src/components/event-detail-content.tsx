@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarIcon, ClockIcon, MapPinIcon, TicketIcon } from "lucide-react";
+import {
+	AlarmClockIcon,
+	CalendarIcon,
+	ClockIcon,
+	MapPinIcon,
+	TicketIcon,
+} from "lucide-react";
 import { getEvent } from "@/lib/api";
 import { EventDetail } from "@/lib/types";
 import {
@@ -14,9 +20,46 @@ import {
 	formatEventDateDisplay,
 	formatStartCountdown,
 	formatEndCountdown,
+	EventCountdownKind,
 } from "@/lib/date-filter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+function PingDot({ className }: { className?: string }) {
+	return (
+		<span
+			className={`relative inline-flex w-[10px] h-[10px] ${className ?? ""}`}
+		>
+			<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-75" />
+			<span className="relative inline-flex h-full w-full rounded-full bg-current" />
+		</span>
+	);
+}
+
+const COUNTDOWN_STYLES: Record<
+	EventCountdownKind,
+	{
+		background: string;
+		color: string;
+		icon: React.ComponentType<{ className?: string }>;
+	}
+> = {
+	starting: {
+		background: "var(--naidee-yellow-400)",
+		color: "var(--naidee-stone-900)",
+		icon: ClockIcon,
+	},
+	ongoing: {
+		background: "var(--success)",
+		color: "#ffffff",
+		icon: PingDot,
+	},
+	ending: {
+		background: "var(--naidee-orange-400)",
+		color: "var(--naidee-stone-900)",
+		icon: AlarmClockIcon,
+	},
+};
 
 interface EventDetailContentProps {
 	eventId: string;
@@ -92,6 +135,7 @@ export function EventDetailContent({
 			))
 		: null;
 	const isInstagramLink = !event?.registration_url && !!event?.permalink;
+	const countdownStyle = countdown ? COUNTDOWN_STYLES[countdown.kind] : null;
 
 	return (
 		<div>
@@ -136,15 +180,6 @@ export function EventDetailContent({
 						{topRightAction}
 					</div>
 				)}
-				{countdown && (
-					<span
-						className={`absolute top-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold text-[var(--naidee-stone-900)] shadow-[var(--shadow-float)] ${topLeftAction ? "right-3" : "left-3"}`}
-						style={{ background: "var(--naidee-yellow-400)" }}
-					>
-						<ClockIcon className="size-3.5" />
-						{countdown}
-					</span>
-				)}
 				{!loading && event && (
 					<div className="absolute right-4 bottom-3.5 left-4 text-white">
 						<span
@@ -172,12 +207,27 @@ export function EventDetailContent({
 					</div>
 				) : (
 					<>
-						{event.price_text && (
-							<div className="flex gap-2 pb-3">
-								<span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-0.5 text-xs font-bold tabular-nums text-secondary-foreground">
-									<TicketIcon className="size-3.5" />
-									{event.price_text}
-								</span>
+						{(countdown || event.price_text) && (
+							<div className="flex flex-wrap gap-2 pb-3">
+								{countdown && countdownStyle && (
+									<span
+										className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-bold"
+										style={{
+											background:
+												countdownStyle.background,
+											color: countdownStyle.color,
+										}}
+									>
+										<countdownStyle.icon className="size-3.5" />
+										{countdown.text}
+									</span>
+								)}
+								{event.price_text && (
+									<span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-0.5 text-xs font-bold tabular-nums text-secondary-foreground">
+										<TicketIcon className="size-3.5" />
+										{event.price_text}
+									</span>
+								)}
 							</div>
 						)}
 						<div className="flex flex-col gap-2">

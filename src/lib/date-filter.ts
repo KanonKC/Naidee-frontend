@@ -105,29 +105,37 @@ export function formatEventDateDisplay(
     return `วันนี้ - ${formatThaiWeekdayDate(endValue)}${time}`;
 }
 
+/** Which phase of the event a countdown badge represents — drives its color/icon in the UI. */
+export type EventCountdownKind = "starting" | "ongoing" | "ending";
+
+export interface EventCountdownBadge {
+    kind: EventCountdownKind;
+    text: string;
+}
+
 /**
  * "เริ่มในอีก N นาที/ชั่วโมง" for events starting soon; null once it's started or more than 48h out.
  * When the start time isn't known (only the date is), falls back to day-granularity ("เริ่มพรุ่งนี้" /
  * "เริ่มในอีก 2 วัน") instead of guessing an exact hour/minute countdown.
  */
-export function formatStartCountdown(start: string | null, startTimeKnown: boolean, now: Date = new Date()): string | null {
+export function formatStartCountdown(start: string | null, startTimeKnown: boolean, now: Date = new Date()): EventCountdownBadge | null {
     if (!start) return null;
     const startDate = new Date(start);
 
     if (!startTimeKnown) {
         const daysUntil = Math.round((startOfDay(startDate).getTime() - startOfDay(now).getTime()) / 86_400_000);
-        if (daysUntil === 1) return "เริ่มพรุ่งนี้";
-        if (daysUntil === 2) return "เริ่มในอีก 2 วัน";
+        if (daysUntil === 1) return { kind: "starting", text: "เริ่มพรุ่งนี้" };
+        if (daysUntil === 2) return { kind: "starting", text: "เริ่มในอีก 2 วัน" };
         return null;
     }
 
     const diffMs = startDate.getTime() - now.getTime();
     if (diffMs <= 0) return null;
     const diffMinutes = Math.round(diffMs / 60000);
-    if (diffMinutes < 60) return `เริ่มในอีก ${Math.max(diffMinutes, 1)} นาที`;
+    if (diffMinutes < 60) return { kind: "starting", text: `เริ่มในอีก ${Math.max(diffMinutes, 1)} นาที` };
     const diffHours = Math.round(diffMinutes / 60);
-    if (diffHours < 24) return `เริ่มในอีก ${diffHours} ชั่วโมง`;
-    if (diffHours < 48) return "เริ่มพรุ่งนี้";
+    if (diffHours < 24) return { kind: "starting", text: `เริ่มในอีก ${diffHours} ชั่วโมง` };
+    if (diffHours < 48) return { kind: "starting", text: "เริ่มพรุ่งนี้" };
     return null;
 }
 
@@ -148,7 +156,7 @@ export function formatEndCountdown(
     end: string | null,
     endTimeKnown: boolean,
     now: Date = new Date()
-): string | null {
+): EventCountdownBadge | null {
     if (!start || !end) return null;
 
     const startDate = new Date(start);
@@ -163,12 +171,16 @@ export function formatEndCountdown(
         if (daysLeft < 0) return null;
 
         const durationDays = Math.round((endDay.getTime() - startDay.getTime()) / 86_400_000) + 1;
-        if (durationDays <= 1) return "วันนี้วันสุดท้าย";
-        if (durationDays <= 2) return daysLeft === 0 ? "วันนี้วันสุดท้าย" : "งานกำลังเกิดขึ้น";
-        if (daysLeft === 0) return "วันนี้วันสุดท้าย";
-        if (daysLeft === 1) return "เหลืออีก 1 วัน";
-        if (daysLeft === 2) return "เหลืออีก 2 วัน";
-        return "งานกำลังเกิดขึ้น";
+        if (durationDays <= 1) return { kind: "ending", text: "วันนี้วันสุดท้าย" };
+        if (durationDays <= 2) {
+            return daysLeft === 0
+                ? { kind: "ending", text: "วันนี้วันสุดท้าย" }
+                : { kind: "ongoing", text: "งานกำลังเกิดขึ้น" };
+        }
+        if (daysLeft === 0) return { kind: "ending", text: "วันนี้วันสุดท้าย" };
+        if (daysLeft === 1) return { kind: "ending", text: "เหลืออีก 1 วัน" };
+        if (daysLeft === 2) return { kind: "ending", text: "เหลืออีก 2 วัน" };
+        return { kind: "ongoing", text: "งานกำลังเกิดขึ้น" };
     }
 
     const timeLeftMs = endDate.getTime() - now.getTime();
@@ -178,14 +190,14 @@ export function formatEndCountdown(
     const hoursLeft = timeLeftMs / 3_600_000;
     const windowHours = durationHours <= 24 ? 12 : durationHours <= 48 ? 24 : 48;
 
-    if (hoursLeft > windowHours) return "งานกำลังเกิดขึ้น";
+    if (hoursLeft > windowHours) return { kind: "ongoing", text: "งานกำลังเกิดขึ้น" };
 
     if (durationHours > 48) {
-        if (hoursLeft > 24) return "เหลืออีก 2 วัน";
-        if (hoursLeft > 23) return "เหลืออีก 1 วัน";
+        if (hoursLeft > 24) return { kind: "ending", text: "เหลืออีก 2 วัน" };
+        if (hoursLeft > 23) return { kind: "ending", text: "เหลืออีก 1 วัน" };
     }
 
-    return `เหลืออีก ${Math.max(1, Math.ceil(hoursLeft))} ชั่วโมง`;
+    return { kind: "ending", text: `เหลืออีก ${Math.max(1, Math.ceil(hoursLeft))} ชั่วโมง` };
 }
 
 export function dateRangeLabel(range: DateRange): string {
