@@ -25,6 +25,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
+function CountdownBadge({
+	countdown,
+}: {
+	countdown: NonNullable<ReturnType<typeof formatStartCountdown>>;
+}) {
+	const style = COUNTDOWN_STYLES[countdown.kind];
+	return (
+		<span
+			className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-bold"
+			style={{
+				background: style.background,
+				color: style.color,
+			}}
+		>
+			<style.icon className="size-3.5" />
+			{countdown.text}
+		</span>
+	);
+}
+
 function PingDot({ className }: { className?: string }) {
 	return (
 		<span
@@ -135,7 +155,6 @@ export function EventDetailContent({
 			))
 		: null;
 	const isInstagramLink = !event?.registration_url && !!event?.permalink;
-	const countdownStyle = countdown ? COUNTDOWN_STYLES[countdown.kind] : null;
 
 	return (
 		<div>
@@ -209,18 +228,8 @@ export function EventDetailContent({
 					<>
 						{(countdown || event.price_text) && (
 							<div className="flex flex-wrap gap-2 pb-3">
-								{countdown && countdownStyle && (
-									<span
-										className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-bold"
-										style={{
-											background:
-												countdownStyle.background,
-											color: countdownStyle.color,
-										}}
-									>
-										<countdownStyle.icon className="size-3.5" />
-										{countdown.text}
-									</span>
+								{countdown && (
+									<CountdownBadge countdown={countdown} />
 								)}
 								{event.price_text && (
 									<span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-0.5 text-xs font-bold tabular-nums text-secondary-foreground">
