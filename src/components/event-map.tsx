@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
-import { LocateIcon } from "lucide-react";
+import { LocateIcon, Loader2Icon } from "lucide-react";
 import { EventSummary } from "@/lib/types";
 import { createPinIcon, createClusterIcon, createUserLocationIcon } from "@/components/naidee/map-pin-icon";
 import { primaryCategory } from "@/lib/categories";
@@ -50,17 +51,22 @@ function groupByVenue(events: EventSummary[]): VenueGroup[] {
 function LocateControl({
     userLocation,
     onLocated,
-    className,
+    bottomOffset,
     autoLocate
 }: {
     userLocation: LatLng | null;
     onLocated: (loc: LatLng) => void;
-    className?: string;
+    bottomOffset?: string;
     autoLocate?: boolean;
 }) {
     const map = useMap();
     const [locating, setLocating] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const autoTriggered = useRef(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     function handleClick() {
         if (!navigator.geolocation) return;
@@ -89,33 +95,58 @@ function LocateControl({
             {userLocation && (
                 <Marker position={[userLocation.lat, userLocation.lng]} icon={createUserLocationIcon()} />
             )}
-            <button
-                type="button"
-                onClick={handleClick}
-                aria-label="ตำแหน่งของฉัน"
-                disabled={locating}
-                className={className}
-                style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    border: "none",
-                    // Solid, not translucent + backdrop-blur: blur-over-map compositing is
-                    // unreliable across browsers and can render this control near-invisible.
-                    background: "#fff",
-                    boxShadow: "var(--shadow-float)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--naidee-stone-800)",
-                    cursor: "pointer",
-                    // Leaflet's own panes (tiles, markers, popups) go up to z-index 700 inside
-                    // .leaflet-container, so this control needs to clear that to stay visible.
-                    zIndex: 1000
-                }}
-            >
-                <LocateIcon className="size-5.5" />
-            </button>
+            {mounted &&
+                createPortal(
+                    <button
+                        type="button"
+                        onClick={handleClick}
+                        aria-label="ตำแหน่งของฉัน"
+                        disabled={locating}
+                        className="fixed right-3 z-50 lg:right-[432px]"
+                        style={{
+                            bottom: bottomOffset ?? "1rem",
+                            width: 48,
+                            height: 48,
+                            borderRadius: "50%",
+                            border: "none",
+                            // Solid, not translucent + backdrop-blur: blur-over-map compositing is
+                            // unreliable across browsers and can render this control near-invisible.
+                            background: "#fff",
+                            boxShadow: "var(--shadow-float)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "var(--naidee-stone-800)",
+                            cursor: locating ? "default" : "pointer",
+                            opacity: locating ? 0.7 : 1,
+                            transition:
+                                "bottom 280ms cubic-bezier(0.32,0.72,0,1), opacity 180ms ease-out"
+                        }}
+                    >
+                        <span
+                            className="relative flex items-center justify-center"
+                            style={{ width: 22, height: 22 }}
+                        >
+                            <LocateIcon
+                                className="absolute size-5.5"
+                                style={{
+                                    opacity: locating ? 0 : 1,
+                                    transform: locating ? "scale(0.7)" : "scale(1)",
+                                    transition: "opacity 180ms ease-out, transform 180ms ease-out"
+                                }}
+                            />
+                            <Loader2Icon
+                                className="absolute size-5.5 animate-spin"
+                                style={{
+                                    opacity: locating ? 1 : 0,
+                                    transform: locating ? "scale(1)" : "scale(0.7)",
+                                    transition: "opacity 180ms ease-out, transform 180ms ease-out"
+                                }}
+                            />
+                        </span>
+                    </button>,
+                    document.body
+                )}
         </>
     );
 }
@@ -178,11 +209,11 @@ interface EventMapProps {
     onMapClick?: () => void;
     userLocation: LatLng | null;
     onLocated: (loc: LatLng) => void;
-    locateClassName?: string;
+    locateBottomOffset?: string;
     autoLocate?: boolean;
 }
 
-export default function EventMap({ events, selectedVenueId, onSelectVenue, onMapClick, userLocation, onLocated, locateClassName, autoLocate }: EventMapProps) {
+export default function EventMap({ events, selectedVenueId, onSelectVenue, onMapClick, userLocation, onLocated, locateBottomOffset, autoLocate }: EventMapProps) {
     const venueGroups = groupByVenue(events);
 
     return (
@@ -206,7 +237,7 @@ export default function EventMap({ events, selectedVenueId, onSelectVenue, onMap
                     />
                 );
             })}
-            <LocateControl userLocation={userLocation} onLocated={onLocated} className={locateClassName} autoLocate={autoLocate} />
+            <LocateControl userLocation={userLocation} onLocated={onLocated} bottomOffset={locateBottomOffset} autoLocate={autoLocate} />
             <FitBounds groups={venueGroups} />
             <PanToSelection groups={venueGroups} selectedVenueId={selectedVenueId} />
             <MapClickHandler onMapClick={onMapClick} />

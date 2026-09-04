@@ -24,6 +24,7 @@ interface PinEventSheetProps {
 	initialEventId?: string | null;
 	distanceFor: (event: EventSummary) => string | null;
 	onClose: () => void;
+	onTopChange?: (top: number) => void;
 }
 
 export interface PinEventSheetHandle {
@@ -34,7 +35,7 @@ export const PinEventSheet = forwardRef<
 	PinEventSheetHandle,
 	PinEventSheetProps
 >(function PinEventSheet(
-	{ venueId, venueName, events, initialEventId, distanceFor, onClose },
+	{ venueId, venueName, events, initialEventId, distanceFor, onClose, onTopChange },
 	ref,
 ) {
 	const [expanded, setExpanded] = useState(false);
@@ -71,6 +72,16 @@ export const PinEventSheet = forwardRef<
 	const top = dragTop ?? restTop;
 	const dragging = dragTop != null;
 	const activeEvent = events.find((e) => e.id === activeEventId) ?? events[0];
+
+	useEffect(() => {
+		onTopChange?.(top);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [top]);
+
+	useEffect(() => {
+		return () => onTopChange?.(HIDDEN_TOP);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	function requestClose() {
 		setDragTop(null);

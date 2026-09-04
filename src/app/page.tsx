@@ -56,6 +56,7 @@ export default function Home() {
     const [search, setSearch] = useState("");
 
     const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+    const [pinSheetTop, setPinSheetTop] = useState(100);
     const [pinFocusEventId, setPinFocusEventId] = useState<string | null>(null);
     const [detailEventId, setDetailEventId] = useState<string | null>(null);
     const [userLocation, setUserLocation] = useState<LatLng | null>(null);
@@ -305,7 +306,7 @@ export default function Home() {
                     userLocation={userLocation}
                     onLocated={setUserLocation}
                     autoLocate
-                    locateClassName="absolute right-3 z-20 bottom-[calc(47%+14px)] lg:bottom-4"
+                    locateBottomOffset={pinSheetTop < 100 ? `calc(${100 - pinSheetTop}% + 14px)` : "1rem"}
                 />
             </div>
 
@@ -334,6 +335,7 @@ export default function Home() {
                     initialEventId={pinFocusEventId}
                     distanceFor={eventDistance}
                     onClose={() => setSelectedVenueId(null)}
+                    onTopChange={setPinSheetTop}
                 />
             )}
 
