@@ -1,7 +1,5 @@
 import { EventDetail, EventSummary } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
-
 export interface EventFilters {
     from?: string;
     to?: string;
@@ -9,7 +7,7 @@ export interface EventFilters {
 }
 
 async function apiFetch<T>(path: string): Promise<T> {
-    const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
+    const res = await fetch(path, { cache: "no-store" });
     if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message ?? `Request failed with status ${res.status}`);
