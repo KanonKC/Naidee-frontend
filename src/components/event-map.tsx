@@ -18,6 +18,7 @@ interface VenueGroup {
     lat: number;
     lng: number;
     category: string | null;
+    categories: string[];
     events: EventSummary[];
 }
 
@@ -27,15 +28,18 @@ function groupByVenue(events: EventSummary[]): VenueGroup[] {
         const venue = event.venue;
         if (!venue || venue.lat == null || venue.lng == null) continue;
         const existing = groups.get(venue.id);
+        const category = primaryCategory(event.categories);
         if (existing) {
             existing.events.push(event);
+            if (category && !existing.categories.includes(category)) existing.categories.push(category);
         } else {
             groups.set(venue.id, {
                 venueId: venue.id,
                 name: venue.name,
                 lat: venue.lat,
                 lng: venue.lng,
-                category: primaryCategory(event.categories),
+                category,
+                categories: category ? [category] : [],
                 events: [event]
             });
         }
@@ -191,7 +195,7 @@ export default function EventMap({ events, selectedVenueId, onSelectVenue, onMap
                 const selected = group.venueId === selectedVenueId;
                 const icon =
                     group.events.length > 1
-                        ? createClusterIcon(group.events.length)
+                        ? createClusterIcon(group.events.length, group.categories)
                         : createPinIcon(group.category, selected);
                 return (
                     <Marker

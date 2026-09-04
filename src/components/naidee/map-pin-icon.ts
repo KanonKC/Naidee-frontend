@@ -19,12 +19,19 @@ export function createPinIcon(category: string | null, selected: boolean): L.Div
     });
 }
 
-export function createClusterIcon(count: number): L.DivIcon {
+export function createClusterIcon(count: number, categories: string[] = []): L.DivIcon {
+    const colors = categories.slice(0, 4).map(categoryColorVar);
+    const ring =
+        colors.length > 1
+            ? `conic-gradient(${colors
+                  .map((color, index) => `${color} ${(index * 100) / colors.length}% ${((index + 1) * 100) / colors.length}%`)
+                  .join(",")})`
+            : colors[0] ?? "var(--naidee-orange-600)";
     return L.divIcon({
         className: "",
         html: `
-      <div style="width:40px;height:40px;border-radius:50%;border:3px solid #fff;background:var(--naidee-orange-600);color:#fff;font-family:var(--font-sans);font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;box-shadow:var(--shadow-pin);display:flex;align-items:center;justify-content:center">
-        ${count}
+      <div style="width:40px;height:40px;border-radius:50%;border:3px solid #fff;background:${ring};box-shadow:var(--shadow-pin);display:flex;align-items:center;justify-content:center">
+        <span style="width:26px;height:26px;border-radius:50%;background:#fff;color:var(--naidee-stone-900);font-family:var(--font-sans);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center">${count}</span>
       </div>`,
         iconSize: [40, 40],
         iconAnchor: [20, 20]
