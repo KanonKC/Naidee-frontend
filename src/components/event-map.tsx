@@ -1,16 +1,44 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
-import { LocateIcon } from "lucide-react";
+import { MapContainer, Marker, Pane, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { LocateIcon, TrainFrontIcon } from "lucide-react";
 import { EventSummary } from "@/lib/types";
 import { createPinIcon, createClusterIcon, createUserLocationIcon } from "@/components/naidee/map-pin-icon";
 import { primaryCategory } from "@/lib/categories";
 import type { LatLng } from "@/lib/geo";
 
 const BANGKOK_CENTER: [number, number] = [13.7563, 100.5018];
+
+// OSM's subdomain form ({s}.tile.…) is deprecated; the bare host is the current
+// recommendation and is fine over HTTP/2.
+const OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const OSM_ATTRIBUTION =
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const BASE_MAX_ZOOM = 19;
+// Desaturating the basemap is what buys the "calm map" look. It has to be scoped
+// to the basemap's own pane rather than the whole map, so the railway overlay and
+// the event pins keep their full colour and gain contrast against the grey.
+// A ready-made flat basemap was the first choice, but CARTO now key-gates its
+// tiles (they come back 200 with "API KEY REQUIRED" burnt into the image) and
+// Esri's Light Gray stops at z16, so this filter gets the same effect key-free.
+const BASEMAP_FILTER = "saturate(0.15) brightness(1.06) contrast(0.92)";
+const BASEMAP_PANE_Z_INDEX = 200;
+
+const RAILWAY_URL = "https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png";
+const RAILWAY_ATTRIBUTION = '&copy; <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>';
+// OpenRailwayMap 404s from z20 up. The basemap also stops at 19 so the map should
+// never ask for 20, but pin the native zoom anyway: without it, raising
+// BASE_MAX_ZOOM later would silently make the rail lines vanish at full zoom.
+const RAILWAY_MAX_NATIVE_ZOOM = 19;
+const RAILWAY_OPACITY = 0.85;
+// Between tilePane (200) and overlayPane (400): above the basemap, still below
+// markerPane (600) so event pins always win. Stacking two TileLayers in the
+// default tilePane would depend on DOM mount order, which is not stable across
+// the re-render that toggling this layer causes.
+const RAILWAY_PANE_Z_INDEX = 250;
 
 interface VenueGroup {
     venueId: string;
@@ -45,6 +73,51 @@ function groupByVenue(events: EventSummary[]): VenueGroup[] {
         }
     }
     return Array.from(groups.values());
+}
+
+// Shared by both floating map controls so they read as one set.
+// Solid, not translucent + backdrop-blur: blur-over-map compositing is
+// unreliable across browsers and can render these controls near-invisible.
+// Leaflet's own panes (tiles, markers, popups) go up to z-index 700 inside
+// .leaflet-container, so these need to clear that to stay visible.
+const FLOAT_BUTTON_STYLE: CSSProperties = {
+    width: 48,
+    height: 48,
+    borderRadius: "50%",
+    border: "none",
+    background: "#fff",
+    boxShadow: "var(--shadow-float)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    zIndex: 1000
+};
+
+function RailwayToggle({
+    active,
+    onToggle,
+    className
+}: {
+    active: boolean;
+    onToggle: () => void;
+    className?: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            aria-label="เส้นทางรถไฟฟ้า"
+            aria-pressed={active}
+            className={className}
+            style={{
+                ...FLOAT_BUTTON_STYLE,
+                color: active ? "var(--naidee-stone-800)" : "var(--naidee-stone-400)"
+            }}
+        >
+            <TrainFrontIcon className="size-5.5" />
+        </button>
+    );
 }
 
 function LocateControl({
@@ -95,24 +168,7 @@ function LocateControl({
                 aria-label="ตำแหน่งของฉัน"
                 disabled={locating}
                 className={className}
-                style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    border: "none",
-                    // Solid, not translucent + backdrop-blur: blur-over-map compositing is
-                    // unreliable across browsers and can render this control near-invisible.
-                    background: "#fff",
-                    boxShadow: "var(--shadow-float)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--naidee-stone-800)",
-                    cursor: "pointer",
-                    // Leaflet's own panes (tiles, markers, popups) go up to z-index 700 inside
-                    // .leaflet-container, so this control needs to clear that to stay visible.
-                    zIndex: 1000
-                }}
+                style={{ ...FLOAT_BUTTON_STYLE, color: "var(--naidee-stone-800)" }}
             >
                 <LocateIcon className="size-5.5" />
             </button>
@@ -179,18 +235,31 @@ interface EventMapProps {
     userLocation: LatLng | null;
     onLocated: (loc: LatLng) => void;
     locateClassName?: string;
+    railwayClassName?: string;
     autoLocate?: boolean;
 }
 
-export default function EventMap({ events, selectedVenueId, onSelectVenue, onMapClick, userLocation, onLocated, locateClassName, autoLocate }: EventMapProps) {
+export default function EventMap({ events, selectedVenueId, onSelectVenue, onMapClick, userLocation, onLocated, locateClassName, railwayClassName, autoLocate }: EventMapProps) {
     const venueGroups = groupByVenue(events);
+    const [showRailway, setShowRailway] = useState(true);
 
     return (
         <MapContainer center={BANGKOK_CENTER} zoom={13} scrollWheelZoom zoomControl={false} className="h-full w-full">
-            <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            <Pane name="basemap" style={{ zIndex: BASEMAP_PANE_Z_INDEX, filter: BASEMAP_FILTER }}>
+                <TileLayer attribution={OSM_ATTRIBUTION} url={OSM_URL} maxZoom={BASE_MAX_ZOOM} />
+            </Pane>
+            {showRailway && (
+                <Pane name="railway" style={{ zIndex: RAILWAY_PANE_Z_INDEX, pointerEvents: "none" }}>
+                    <TileLayer
+                        attribution={RAILWAY_ATTRIBUTION}
+                        url={RAILWAY_URL}
+                        subdomains="abc"
+                        opacity={RAILWAY_OPACITY}
+                        maxNativeZoom={RAILWAY_MAX_NATIVE_ZOOM}
+                        maxZoom={BASE_MAX_ZOOM}
+                    />
+                </Pane>
+            )}
             {venueGroups.map((group) => {
                 const selected = group.venueId === selectedVenueId;
                 const icon =
@@ -207,6 +276,7 @@ export default function EventMap({ events, selectedVenueId, onSelectVenue, onMap
                 );
             })}
             <LocateControl userLocation={userLocation} onLocated={onLocated} className={locateClassName} autoLocate={autoLocate} />
+            <RailwayToggle active={showRailway} onToggle={() => setShowRailway((v) => !v)} className={railwayClassName} />
             <FitBounds groups={venueGroups} />
             <PanToSelection groups={venueGroups} selectedVenueId={selectedVenueId} />
             <MapClickHandler onMapClick={onMapClick} />

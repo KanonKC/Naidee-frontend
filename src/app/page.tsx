@@ -305,7 +305,8 @@ export default function Home() {
                     userLocation={userLocation}
                     onLocated={setUserLocation}
                     autoLocate
-                    locateClassName="absolute right-3 z-20 bottom-[calc(47%+14px)] lg:bottom-4"
+                    locateClassName="absolute right-3 z-20 bottom-[calc(47%+14px)] lg:right-[412px] lg:bottom-4"
+                    railwayClassName="absolute right-3 z-20 bottom-[calc(47%+70px)] lg:right-[412px] lg:bottom-[70px]"
                 />
             </div>
 
