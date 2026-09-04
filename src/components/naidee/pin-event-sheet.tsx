@@ -12,7 +12,7 @@ import { EventSummary } from "@/lib/types";
 import { EventDetailContent } from "@/components/event-detail-content";
 import { formatEventDateDisplay } from "@/lib/date-filter";
 
-const HALF_TOP = 30;
+const HALF_TOP = 40;
 const FULL_TOP = 0;
 const HIDDEN_TOP = 100;
 const CLOSE_THRESHOLD = HALF_TOP + 14;
@@ -190,7 +190,7 @@ export const PinEventSheet = forwardRef<
 				<EventDetailContent
 					eventId={activeEvent.id}
 					distance={distanceFor(activeEvent)}
-					heroAspectRatio="4/3"
+					heroAspectRatio="16/9"
 					dragHandle={
 						<div
 							className="absolute inset-x-0 top-0 flex h-10 cursor-grab touch-none justify-center pt-2.5 active:cursor-grabbing"

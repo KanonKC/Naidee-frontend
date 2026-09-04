@@ -13,6 +13,7 @@ import {
 import {
 	formatEventDateDisplay,
 	formatStartCountdown,
+	formatEndCountdown,
 } from "@/lib/date-filter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -82,7 +83,13 @@ export function EventDetailContent({
 			)
 		: null;
 	const countdown = event
-		? formatStartCountdown(event.start_at, event.start_time_known, now)
+		? (formatStartCountdown(event.start_at, event.start_time_known, now) ??
+			formatEndCountdown(
+				event.start_at,
+				event.end_at,
+				event.end_time_known,
+				now,
+			))
 		: null;
 	const isInstagramLink = !event?.registration_url && !!event?.permalink;
 
